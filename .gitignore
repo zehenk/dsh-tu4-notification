@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Pack artifacts
+*.tgz
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
