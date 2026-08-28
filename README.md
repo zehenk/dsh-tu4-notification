@@ -3,6 +3,8 @@
 > A [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) plugin that pings you on Windows the instant an agent operation awaits approval.
 >
 > DSH（DeepSeek Harness）插件：agent 操作需要审批的瞬间，在 Windows 上弹出带 DSH 黑鲸鱼 logo 的深色通知卡片。
+>
+> 📦 [github.com/zehenk/dsh-tu4-notification](https://github.com/zehenk/dsh-tu4-notification) ｜ [Issues](https://github.com/zehenk/dsh-tu4-notification/issues) ｜ [Changelog](CHANGELOG.md) ｜ [MIT](LICENSE)
 
 When any agent operation requires approval (sandbox escalation, file access, …), DSH parks the request **pending** until you answer it in the Web GUI. If you've switched to another app, you miss it. This plugin fires a native Windows toast the moment the approval becomes pending, so you can glance back at DSH and approve or deny.
 

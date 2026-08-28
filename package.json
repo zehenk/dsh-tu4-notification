@@ -39,5 +39,13 @@
     "windows",
     "toast"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zehenk/dsh-tu4-notification.git"
+  },
+  "homepage": "https://github.com/zehenk/dsh-tu4-notification",
+  "bugs": {
+    "url": "https://github.com/zehenk/dsh-tu4-notification/issues"
+  },
   "license": "MIT"
 }
