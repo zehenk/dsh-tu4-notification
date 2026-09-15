@@ -17,7 +17,10 @@ param(
     [string]$Title   = 'DSH',
     [string]$Body    = '',
     [int]$Seconds    = 10,
-    [string]$PreviewOut = ''   # if set: render the card to a PNG and exit (visual self-check)
+    [string]$PreviewOut = '',  # if set: render the card to a PNG and exit (visual self-check)
+    [string]$Token   = '',     # approval token; button clicks write the outcome to %TEMP%\dsh-tu4-notify-<token>.txt
+    [string]$BtnReject = 'Reject',   # reject button label (display text arrives via command line, UTF-16 safe)
+    [string]$BtnAllow  = 'Allow once'  # allow-once button label (same)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -187,7 +190,7 @@ M22.9168 1.43018C22.6713 1.31018 22.5658 1.53918 22.4223 1.65519C22.3733 1.69269
 
     # --- Layout (96-dpi design units) ---
     $w        = px 428
-    $h        = px 96
+    $h        = px 124   # v0.5: taller card to fit the action button row
     $barW     = px 4
     $margin   = px 48
     $iconSize = px 55
@@ -195,7 +198,20 @@ M22.9168 1.43018C22.6713 1.31018 22.5658 1.53918 22.4223 1.65519C22.3733 1.69269
     $iconY    = [int](($h - $iconSize) / 2)
     $textX    = $iconX + $iconSize + (px 12)
     $bodyW    = $w - $textX - (px 14)
-    $bodyH    = px 44
+    $bodyY    = px 36
+    $bodyH    = px 38
+
+    # Action button row (bottom-right, capsule geometry like the DSH GUI)
+    $btnH      = px 28
+    $btnBottom = px 12
+    $btnRight  = px 16
+    $btnGap    = px 8
+    $allowW    = px 76
+    $rejectW   = px 60
+    $btnY      = $h - $btnH - $btnBottom
+    $allowX    = $w - $btnRight - $allowW
+    $rejectX   = $allowX - $btnGap - $rejectW
+    $btnRadius = [int]($btnH / 2)
 
     $form = New-Object System.Windows.Forms.Form
     $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
@@ -268,10 +284,128 @@ M22.9168 1.43018C22.6713 1.31018 22.5658 1.53918 22.4223 1.65519C22.3733 1.69269
     $bodyLabel.Font         = $bodyFont
     $bodyLabel.ForeColor    = $bodyColor
     $bodyLabel.BackColor    = $bgColor
-    $bodyLabel.Location     = New-Object System.Drawing.Point($textX, (px 40))
+    $bodyLabel.Location     = New-Object System.Drawing.Point($textX, $bodyY)
     $bodyLabel.Size         = New-Object System.Drawing.Size($bodyW, $bodyH)
     $bodyLabel.Text         = FitText $Body $bodyFont $bodyW $bodyH
     $form.Controls.Add($bodyLabel)
+
+    # Right-top close button (GDI+ drawn circle with X icon)
+    $closeBtnSize = px 25
+    $closeBtnPad = px 6
+    $closeBtnX = $w - $closeBtnSize - $closeBtnPad
+    $closeBtnY = $closeBtnPad
+    $closeBtn = New-Object System.Windows.Forms.Button
+    $closeBtn.Text = ''
+    $closeBtn.Size = New-Object System.Drawing.Size($closeBtnSize, $closeBtnSize)
+    $closeBtn.Location = New-Object System.Drawing.Point($closeBtnX, $closeBtnY)
+    $closeBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $closeBtn.BackColor = $bgColor
+    $closeBtn.FlatAppearance.BorderSize = 0
+    $closeBtn.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $closeBtn.Add_Paint({
+        param($sender, $e)
+        $g = $e.Graphics
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $s = $sender.ClientSize.Width
+        # Circle background (semi-transparent gray)
+        $circleBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(100, 100, 104))
+        $circleRect = New-Object System.Drawing.Rectangle(1, 1, ($s - 2), ($s - 2))
+        try { $g.FillEllipse($circleBrush, $circleRect) } finally { $circleBrush.Dispose() }
+        # X icon (two crossed lines)
+        $xPen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(220, 220, 222), ([float]2))
+        $pad = [int]($s * 0.3)
+        try {
+            $g.DrawLine($xPen, $pad, $pad, ($s - $pad), ($s - $pad))
+            $g.DrawLine($xPen, ($s - $pad), $pad, $pad, ($s - $pad))
+        } finally { $xPen.Dispose() }
+    })
+    $closeBtn.Add_Click({
+        $form.Close()
+    })
+    $form.Controls.Add($closeBtn)
+
+    # Action button row (v0.5): [reject outline] [allow once primary],
+    # right-aligned like the DSH GUI approval panel (dark-theme tokens).
+    # Clicking writes the outcome to %TEMP%\dsh-tu4-notify-<token>.txt for
+    # the host plugin to claim the approval, then closes the card.
+    $resultFile = ''
+    if ($Token) {
+        $resultFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "dsh-tu4-notify-$Token.txt")
+    }
+    $answered = $false
+    $answerAndClose = {
+        param($outcome)
+        if ($answered) { return }
+        $answered = $true
+        if ($resultFile) {
+            try { Set-Content -Path $resultFile -Value $outcome -Encoding ascii } catch {}
+        }
+        $form.Close()
+    }
+
+    # Allow-once (primary): light capsule with dark text (dark-theme inverted
+    # primary: fill #F9FAFB / text #0F1115, hover #EBEEF2).
+    $allowNormal = [System.Drawing.Color]::FromArgb(249, 250, 251)
+    $allowHover  = [System.Drawing.Color]::FromArgb(235, 238, 242)
+    $allowBtn = New-Object System.Windows.Forms.Button
+    $allowBtn.Text = $BtnAllow
+    $allowBtn.Size = New-Object System.Drawing.Size($allowW, $btnH)
+    $allowBtn.Location = New-Object System.Drawing.Point($allowX, $btnY)
+    $allowBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $allowBtn.FlatAppearance.BorderSize = 0
+    $allowBtn.BackColor = $allowNormal
+    $allowBtn.ForeColor = [System.Drawing.Color]::FromArgb(15, 17, 21)
+    $allowBtn.Font = [DshNotify.Fonts]::Regular('Segoe UI', [float]9)
+    $allowBtn.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $allowBtn.Region = New-Object System.Drawing.Region([DshNotify.SvgPath]::RoundedRect(0, 0, [float]$allowW, [float]$btnH, [float]$btnRadius))
+    $allowBtn.Add_MouseEnter({ param($s, $e) $s.BackColor = $allowHover })
+    $allowBtn.Add_MouseLeave({ param($s, $e) $s.BackColor = $allowNormal })
+    $allowBtn.Add_Click({ & $answerAndClose 'allowed-once' })
+    $form.Controls.Add($allowBtn)
+
+    # Reject (outline): transparent capsule with 1px border; on hover the
+    # border hides and the danger tint appears (GUI reject-hover parity).
+    $rejectNormalBg = $bgColor
+    $rejectNormalFg = [System.Drawing.Color]::FromArgb(249, 250, 251)
+    $rejectHoverBg  = [System.Drawing.Color]::FromArgb(54, 31, 33)
+    $rejectHoverFg  = [System.Drawing.Color]::FromArgb(242, 90, 90)
+    $rejectHover = $false
+    $rejectBtn = New-Object System.Windows.Forms.Button
+    $rejectBtn.Text = $BtnReject
+    $rejectBtn.Size = New-Object System.Drawing.Size($rejectW, $btnH)
+    $rejectBtn.Location = New-Object System.Drawing.Point($rejectX, $btnY)
+    $rejectBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $rejectBtn.FlatAppearance.BorderSize = 0
+    $rejectBtn.BackColor = $rejectNormalBg
+    $rejectBtn.ForeColor = $rejectNormalFg
+    $rejectBtn.Font = [DshNotify.Fonts]::Regular('Segoe UI', [float]9)
+    $rejectBtn.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $rejectBtn.Region = New-Object System.Drawing.Region([DshNotify.SvgPath]::RoundedRect(0, 0, [float]$rejectW, [float]$btnH, [float]$btnRadius))
+    $rejectBtn.Add_Paint({
+        param($s, $e)
+        if ($rejectHover) { return }   # border hidden while hovered
+        $g = $e.Graphics
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(58, 58, 60), 1)
+        $path = [DshNotify.SvgPath]::RoundedRect(1, 1, [float]($s.ClientSize.Width - 3), [float]($s.ClientSize.Height - 3), [float]([int]($s.ClientSize.Height / 2)))
+        try { $g.DrawPath($pen, $path) } finally { $pen.Dispose(); $path.Dispose() }
+    })
+    $rejectBtn.Add_MouseEnter({
+        param($s, $e)
+        $rejectHover = $true
+        $s.BackColor = $rejectHoverBg
+        $s.ForeColor = $rejectHoverFg
+        $s.Invalidate()
+    })
+    $rejectBtn.Add_MouseLeave({
+        param($s, $e)
+        $rejectHover = $false
+        $s.BackColor = $rejectNormalBg
+        $s.ForeColor = $rejectNormalFg
+        $s.Invalidate()
+    })
+    $rejectBtn.Add_Click({ & $answerAndClose 'rejected' })
+    $form.Controls.Add($rejectBtn)
 
     # Position: bottom-right corner of the primary work area.
     $work = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
