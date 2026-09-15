@@ -1,6 +1,6 @@
 {
   "name": "dsh-tu4-notification",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "DSH notification plugin: shows a dark WinForms approval card (DSH black whale logo) with 拒绝/允许一次 action buttons that answer the approval in place (same outcomes as the GUI); if the card is ignored or fails, the request is delegated to the host answerer. Msg dialog fallback. Never blocks the approval flow.",
   "type": "module",
   "main": "index.js",

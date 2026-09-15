@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.5.1
+
+### Changed
+- **Card display duration: 15 s → 10 s** (`TOAST_SECONDS` constant in `index.js`). The claim window derives from it, so the ignored-approval GUI fallback moves from ≈18 s to ≈13 s (10 s + 3 s grace). The card still closes before the claim window expires, so the buttons remain live for the entire visible lifetime of the card.
+- Fine-tuning knobs (unchanged): `TOAST_SECONDS` (display + fallback together) or `DSH_NOTIFY_CLAIM_MS` (fallback only, no reinstall).
+
 ## 0.5.0
 
 ### Added

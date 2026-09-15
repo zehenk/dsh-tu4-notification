@@ -34,7 +34,7 @@ export const name = 'dsh-tu4-notification'
 const NOTIFY_TITLE = 'DSH 审批请求'
 
 /** WinForms 卡片显示时长（秒）。 */
-const TOAST_SECONDS = 15
+const TOAST_SECONDS = 10
 
 /** 正文最大长度（超出由 notify.ps1 按 2 行截断，这里是粗粒度上限）。 */
 const BODY_MAX = 120
@@ -208,7 +208,7 @@ function launchCard(body, token, hooks) {
     '-BtnAllow', BTN_ALLOW,
   ]
   try {
-    // 卡片存活约 15s + 启动开销；30s 超时兜底，超时/正常退出都不再处理
+    // 卡片存活约 10s + 启动开销；30s 超时兜底，超时/正常退出都不再处理
     //（claim 窗口已先于该时刻 settle）。
     execFile('powershell.exe', args, { windowsHide: true, timeout: 30000 }, (err) => {
       if (!err) return
